@@ -221,7 +221,11 @@ public:
   }
 
   void imprimir_estrutura(std::ostream& os = std::cout) const {
-    imprimir_helper(m_root.get(), "", true, os);
+    if (!m_root) {
+      os << "Árvore vazia.\n";
+      return;
+    }
+    imprimir_helper(m_root.get(), "", true, true, os);
   }
 
   [[nodiscard]] std::size_t size()         const noexcept { return m_size;                   }
@@ -237,16 +241,31 @@ private:
     em_ordem_helper(static_cast<NodePtr>(node->right.get()), os);
   }
 
-  void imprimir_helper(NodePtr node, const std::string& prefix, bool is_tail, std::ostream& os) const {
+  void imprimir_helper(NodePtr node, const std::string& prefix, bool is_tail, bool is_root, std::ostream& os) const {
     if (!node) return;
-    os << prefix << (is_tail ? "└── " : "├── ") << node->key << " (h:" << node->height << ")\n";
-    
+
+    std::string lado_str = is_root ? "[Root] " : (is_tail ? "[D] " : "[E] ");
+
+    os << prefix;
+    if (!is_root) {
+      os << (is_tail ? "└── " : "├── ");
+    } else {
+      os << "└── ";
+    }
+    os << lado_str << node->key << " (h:" << node->height << ")\n";
+
     NodePtr left = static_cast<NodePtr>(node->left.get());
     NodePtr right = static_cast<NodePtr>(node->right.get());
 
     if (left || right) {
-      if (left) imprimir_helper(left, prefix + (is_tail ? "    " : "│   "), !right, os);
-      if (right) imprimir_helper(right, prefix + (is_tail ? "    " : "│   "), true, os);
+      std::string new_prefix = prefix + (is_root ? "    " : (is_tail ? "    " : "│   "));
+      
+      if (left) {
+        imprimir_helper(left, new_prefix, right == nullptr, false, os);
+      }
+      if (right) {
+        imprimir_helper(right, new_prefix, true, false, os);
+      }
     }
   }
 };
