@@ -5,6 +5,7 @@
 #include <iostream>
 #include <algorithm> // std::max
 #include <cstddef>   // std::size_t
+#include <memory>    // std::unique_ptr, std::make_unique, std::move
 
 namespace sc {
 
@@ -19,7 +20,6 @@ struct AVLNode : public Node<Key, Value> {
       : Node<Key, Value>(k, v)
       {}
 };
-
 
 /**
  * @brief AVL Tree class with concrete rebalancing operations.
@@ -40,11 +40,9 @@ private:
   }
 
   int get_balance_factor(NodePtr node) const {
-    if (node->is_leaf){
-        return 0;
-    } else {
-        return get_height(static_cast<NodePtr>(node->left)) - get_height(static_cast<NodePtr>(node->right.get()));
-    }
+    if (!node) return 0;
+    return get_height(static_cast<NodePtr>(node->left.get())) - 
+           get_height(static_cast<NodePtr>(node->right.get()));
   }
 
   void update_height(NodePtr node) {
@@ -55,44 +53,134 @@ private:
   }
 
   //=== Rotation Operations
-  NodePtr rotacionar_direita(NodePtr y) {
+  std::unique_ptr<AVLNode<Key, Value>> rotacionar_direita(std::unique_ptr<AVLNode<Key, Value>> y) {
     m_rotacoes++;
-    // Perform rotation using std::unique_ptr releases and moves
     auto x = std::unique_ptr<AVLNode<Key, Value>>(static_cast<AVLNode<Key, Value>*>(y->left.release()));
     auto T2 = std::move(x->right);
 
-    x->right = std::unique_ptr<AVLNode<Key, Value>>(y);
+    x->right = std::move(y);
     x->right->left = std::move(T2);
-
-    // Update parents
-    if (x->right->left) {
-      x->right->left->parent = x->right.get();
-    }
-    x->right->parent = x.get();
 
     update_height(x->right.get());
     update_height(x.get());
 
-    return x.release();
+    return x;
   }
 
-  NodePtr rotacionar_esquerda(NodePtr x) {
+  std::unique_ptr<AVLNode<Key, Value>> rotacionar_esquerda(std::unique_ptr<AVLNode<Key, Value>> x) {
     m_rotacoes++;
     auto y = std::unique_ptr<AVLNode<Key, Value>>(static_cast<AVLNode<Key, Value>*>(x->right.release()));
     auto T2 = std::move(y->left);
 
-    y->left = std::unique_ptr<AVLNode<Key, Value>>(x);
+    y->left = std::move(x);
     y->left->right = std::move(T2);
-
-    if (y->left->right) {
-      y->left->right->parent = y->left.get();
-    }
-    y->left->parent = y.get();
 
     update_height(y->left.get());
     update_height(y.get());
 
-    return y.release();
+    return y;
+  }
+
+  // Helper de rebalanceamento
+  std::unique_ptr<AVLNode<Key, Value>> rebalancear(std::unique_ptr<AVLNode<Key, Value>> node) {
+    if (!node) return nullptr;
+
+    update_height(node.get());
+    int balance = get_balance_factor(node.get());
+
+    // Caso Esquerda-Esquerda
+    if (balance > 1 && get_balance_factor(static_cast<NodePtr>(node->left.get())) >= 0) {
+      return rotacionar_direita(std::move(node));
+    }
+
+    // Caso Esquerda-Direita
+    if (balance > 1 && get_balance_factor(static_cast<NodePtr>(node->left.get())) < 0) {
+      node->left = rotacionar_esquerda(std::unique_ptr<AVLNode<Key, Value>>(
+          static_cast<AVLNode<Key, Value>*>(node->left.release())));
+      return rotacionar_direita(std::move(node));
+    }
+
+    // Caso Direita-Direita
+    if (balance < -1 && get_balance_factor(static_cast<NodePtr>(node->right.get())) <= 0) {
+      return rotacionar_esquerda(std::move(node));
+    }
+
+    // Caso Direita-Esquerda
+    if (balance < -1 && get_balance_factor(static_cast<NodePtr>(node->right.get())) > 0) {
+      node->right = rotacionar_direita(std::unique_ptr<AVLNode<Key, Value>>(
+          static_cast<AVLNode<Key, Value>*>(node->right.release())));
+      return rotacionar_esquerda(std::move(node));
+    }
+
+    return node;
+  }
+
+  // Helpers recursivos para inserção e remoção
+  std::unique_ptr<AVLNode<Key, Value>> inserir_helper(std::unique_ptr<AVLNode<Key, Value>> node,
+                                                      const Key& key, const Value& value, bool& inseriu) {
+    if (!node) {
+      inseriu = true;
+      return std::make_unique<AVLNode<Key, Value>>(key, value);
+    }
+
+    if (key < node->key) {
+      node->left = inserir_helper(std::unique_ptr<AVLNode<Key, Value>>(
+          static_cast<AVLNode<Key, Value>*>(node->left.release())), key, value, inseriu);
+    } else if (key > node->key) {
+      node->right = inserir_helper(std::unique_ptr<AVLNode<Key, Value>>(
+          static_cast<AVLNode<Key, Value>*>(node->right.release())), key, value, inseriu);
+    } else {
+      inseriu = false; // Chave duplicada
+      return node;
+    }
+
+    return rebalancear(std::move(node));
+  }
+
+  NodePtr encontrar_minimo(NodePtr node) const {
+    NodePtr current = node;
+    while (current && current->left) {
+      current = static_cast<NodePtr>(current->left.get());
+    }
+    return current;
+  }
+
+  std::unique_ptr<AVLNode<Key, Value>> remover_helper(std::unique_ptr<AVLNode<Key, Value>> node,
+                                                      const Key& key, bool& removeu) {
+    if (!node) {
+      removeu = false;
+      return nullptr;
+    }
+
+    if (key < node->key) {
+      node->left = remover_helper(std::unique_ptr<AVLNode<Key, Value>>(
+          static_cast<AVLNode<Key, Value>*>(node->left.release())), key, removeu);
+    } else if (key > node->key) {
+      node->right = remover_helper(std::unique_ptr<AVLNode<Key, Value>>(
+          static_cast<AVLNode<Key, Value>*>(node->right.release())), key, removeu);
+    } else {
+      removeu = true;
+
+      // Nó com um filho ou nenhum
+      if (!node->left) {
+        return std::unique_ptr<AVLNode<Key, Value>>(
+            static_cast<AVLNode<Key, Value>*>(node->right.release()));
+      } else if (!node->right) {
+        return std::unique_ptr<AVLNode<Key, Value>>(
+            static_cast<AVLNode<Key, Value>*>(node->left.release()));
+      }
+
+      // Nó com dois filhos: obtém o sucessor em-ordem (menor da subárvore direita)
+      NodePtr temp = encontrar_minimo(static_cast<NodePtr>(node->right.get()));
+      node->key = temp->key;
+      node->value = temp->value;
+
+      bool sub_removeu = false;
+      node->right = remover_helper(std::unique_ptr<AVLNode<Key, Value>>(
+          static_cast<AVLNode<Key, Value>*>(node->right.release())), temp->key, sub_removeu);
+    }
+
+    return rebalancear(std::move(node));
   }
 
 public:
@@ -102,13 +190,17 @@ public:
 
   //=== Public Core API
   bool inserir(const Key& key, const Value& value = Value{}) {
-    // Insertion implementation logic
-    return true;
+    bool inseriu = false;
+    m_root = inserir_helper(std::move(m_root), key, value, inseriu);
+    if (inseriu) m_size++;
+    return inseriu;
   }
 
   bool remover(const Key& key) {
-    // Removal implementation logic
-    return true;
+    bool removeu = false;
+    m_root = remover_helper(std::move(m_root), key, removeu);
+    if (removeu) m_size--;
+    return removeu;
   }
 
   const Value* buscar(const Key& key) const {
