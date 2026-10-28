@@ -61,7 +61,7 @@ private:
     x->right = std::move(y);
     x->right->left = std::move(T2);
 
-    update_height(x->right.get());
+    update_height(static_cast<NodePtr>(x->right.get()));
     update_height(x.get());
 
     return x;
@@ -75,7 +75,7 @@ private:
     y->left = std::move(x);
     y->left->right = std::move(T2);
 
-    update_height(y->left.get());
+    update_height(static_cast<NodePtr>(y->left.get()));
     update_height(y.get());
 
     return y;
@@ -170,7 +170,7 @@ private:
             static_cast<AVLNode<Key, Value>*>(node->left.release()));
       }
 
-      // Nó com dois filhos: obtém o sucessor em-ordem (menor da subárvore direita)
+      // Nó com dois filhos
       NodePtr temp = encontrar_minimo(static_cast<NodePtr>(node->right.get()));
       node->key = temp->key;
       node->value = temp->value;
@@ -228,10 +228,10 @@ public:
     imprimir_helper(m_root.get(), "", true, true, os);
   }
 
-  [[nodiscard]] std::size_t size()         const noexcept { return m_size;                   }
-  [[nodiscard]] bool empty()               const noexcept { return m_size == 0;              }
-  [[nodiscard]] std::size_t get_altura()   const          { return get_height(m_root.get()); }
-  [[nodiscard]] std::size_t get_rotacoes() const noexcept { return m_rotacoes;               }
+  std::size_t size()         const noexcept { return m_size;                   }
+  bool empty()               const noexcept { return m_size == 0;              }
+  std::size_t get_altura()   const          { return get_height(m_root.get()); }
+  std::size_t get_rotacoes() const noexcept { return m_rotacoes;               }
 
 private:
   void em_ordem_helper(NodePtr node, std::ostream& os) const {

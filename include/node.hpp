@@ -27,9 +27,9 @@ struct Node {
       {}
 
   /// Helper booleans
-  [[nodiscard]] bool is_leaf()   const noexcept { return left == nullptr && right == nullptr; }
-  [[nodiscard]] bool one_kid()   const noexcept { return left != nullptr ^  right != nullptr; }
-  [[nodiscard]] bool full_node() const noexcept { return left != nullptr && right != nullptr; }
+  bool is_leaf()   const noexcept { return left == nullptr && right == nullptr; }
+  bool one_kid()   const noexcept { return left != nullptr ^  right != nullptr; }
+  bool full_node() const noexcept { return left != nullptr && right != nullptr; }
 
 };
 

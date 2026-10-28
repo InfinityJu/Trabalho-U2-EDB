@@ -164,10 +164,10 @@ public:
     imprimir_helper(m_root.get(), "", true, true, os);
   }
 
-  [[nodiscard]] std::size_t size()         const noexcept { return m_size;                          }
-  [[nodiscard]] bool empty()               const noexcept { return m_size == 0;                     }
-  [[nodiscard]] std::size_t get_altura()   const          { return get_altura_helper(m_root.get()); }
-  [[nodiscard]] std::size_t get_rotacoes() const noexcept { return m_rotacoes;                      }
+  std::size_t size()         const noexcept { return m_size;                          }
+  bool empty()               const noexcept { return m_size == 0;                     }
+  std::size_t get_altura()   const          { return get_altura_helper(m_root.get()); }
+  std::size_t get_rotacoes() const noexcept { return m_rotacoes;                      }
 
 private:
   void em_ordem_helper(NodePtr node, std::ostream& os) const {
@@ -197,12 +197,9 @@ private:
     if (left || right) {
       std::string new_prefix = prefix + (is_root ? "    " : (is_tail ? "    " : "│   "));
       
-      // Se existir filho esquerdo, imprime como não-tail (├──) se houver filho direito, ou tail se não houver
       if (left) {
         imprimir_helper(left, new_prefix, right == nullptr, false, os);
       }
-      
-      // Filho direito é sempre a última ramificação do nó atual (└──)
       if (right) {
         imprimir_helper(right, new_prefix, true, false, os);
       }
