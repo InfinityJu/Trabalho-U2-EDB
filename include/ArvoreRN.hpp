@@ -80,6 +80,111 @@ private:
     return x;
   }
 
+  std::unique_ptr<RBNode<Key, Value>> fix_up(std::unique_ptr<RBNode<Key, Value>> h) {
+    if (is_red(static_cast<NodePtr>(h->right.get())) && !is_red(static_cast<NodePtr>(h->left.get()))) {
+      h = rotacionar_esquerda(std::move(h));
+    }
+    if (is_red(static_cast<NodePtr>(h->left.get())) && 
+        is_red(static_cast<NodePtr>(static_cast<NodePtr>(h->left.get())->left.get()))) {
+      h = rotacionar_direita(std::move(h));
+    }
+    if (is_red(static_cast<NodePtr>(h->left.get())) && is_red(static_cast<NodePtr>(h->right.get()))) {
+      invert_colors(h.get());
+    }
+    return h;
+  }
+
+  std::unique_ptr<RBNode<Key, Value>> move_red_left(std::unique_ptr<RBNode<Key, Value>> h) {
+    invert_colors(h.get());
+    if (is_red(static_cast<NodePtr>(static_cast<NodePtr>(h->right.get())->left.get()))) {
+      h->right = rotacionar_direita(std::unique_ptr<RBNode<Key, Value>>(
+          static_cast<RBNode<Key, Value>*>(h->right.release())));
+      h = rotacionar_esquerda(std::move(h));
+      invert_colors(h.get());
+    }
+    return h;
+  }
+
+  std::unique_ptr<RBNode<Key, Value>> move_red_right(std::unique_ptr<RBNode<Key, Value>> h) {
+    invert_colors(h.get());
+    if (is_red(static_cast<NodePtr>(static_cast<NodePtr>(h->left.get())->left.get()))) {
+      h = rotacionar_direita(std::move(h));
+      invert_colors(h.get());
+    }
+    return h;
+  }
+
+  NodePtr encontrar_minimo(NodePtr node) const {
+    NodePtr current = node;
+    while (current && current->left) {
+      current = static_cast<NodePtr>(current->left.get());
+    }
+    return current;
+  }
+
+  std::unique_ptr<RBNode<Key, Value>> remover_minimo(std::unique_ptr<RBNode<Key, Value>> h) {
+    if (!h->left) return nullptr;
+
+    if (!is_red(static_cast<NodePtr>(h->left.get())) && 
+        !is_red(static_cast<NodePtr>(static_cast<NodePtr>(h->left.get())->left.get()))) {
+      h = move_red_left(std::move(h));
+    }
+
+    h->left = remover_minimo(std::unique_ptr<RBNode<Key, Value>>(
+        static_cast<RBNode<Key, Value>*>(h->left.release())));
+
+    return fix_up(std::move(h));
+  }
+
+  std::unique_ptr<RBNode<Key, Value>> remover_helper(std::unique_ptr<RBNode<Key, Value>> h,
+                                                     const Key& key, bool& removeu) {
+    if (!h) {
+      removeu = false;
+      return nullptr;
+    }
+
+    if (key < h->key) {
+      if (h->left) {
+        if (!is_red(static_cast<NodePtr>(h->left.get())) && 
+            !is_red(static_cast<NodePtr>(static_cast<NodePtr>(h->left.get())->left.get()))) {
+          h = move_red_left(std::move(h));
+        }
+        h->left = remover_helper(std::unique_ptr<RBNode<Key, Value>>(
+            static_cast<RBNode<Key, Value>*>(h->left.release())), key, removeu);
+      }
+    } else {
+      if (is_red(static_cast<NodePtr>(h->left.get()))) {
+        h = rotacionar_direita(std::move(h));
+      }
+
+      if (key == h->key && !h->right) {
+        removeu = true;
+        return nullptr;
+      }
+
+      if (h->right) {
+        if (!is_red(static_cast<NodePtr>(h->right.get())) && 
+            !is_red(static_cast<NodePtr>(static_cast<NodePtr>(h->right.get())->left.get()))) {
+          h = move_red_right(std::move(h));
+        }
+
+        if (key == h->key) {
+          removeu = true;
+          NodePtr min_node = encontrar_minimo(static_cast<NodePtr>(h->right.get()));
+          h->key = min_node->key;
+          h->value = min_node->value;
+          h->right = remover_minimo(std::unique_ptr<RBNode<Key, Value>>(
+              static_cast<RBNode<Key, Value>*>(h->right.release())));
+        } else {
+          h->right = remover_helper(std::unique_ptr<RBNode<Key, Value>>(
+              static_cast<RBNode<Key, Value>*>(h->right.release())), key, removeu);
+        }
+      }
+    }
+
+    return fix_up(std::move(h));
+  }
+
   //=== Helper de inserção LLRB
   std::unique_ptr<RBNode<Key, Value>> inserir_helper(std::unique_ptr<RBNode<Key, Value>> h,
                                                      const Key& key, const Value& value, bool& inseriu) {
@@ -99,21 +204,7 @@ private:
       return h;
     }
 
-    // Corrigir links vermelhos inclinados à direita
-    if (is_red(static_cast<NodePtr>(h->right.get())) && !is_red(static_cast<NodePtr>(h->left.get()))) {
-      h = rotacionar_esquerda(std::move(h));
-    }
-    // Corrigir dois links vermelhos seguidos à esquerda
-    if (is_red(static_cast<NodePtr>(h->left.get())) && 
-        is_red(static_cast<NodePtr>(static_cast<NodePtr>(h->left.get())->left.get()))) {
-      h = rotacionar_direita(std::move(h));
-    }
-    // Inverter cores se ambos os filhos forem vermelhos (Split de nó 4)
-    if (is_red(static_cast<NodePtr>(h->left.get())) && is_red(static_cast<NodePtr>(h->right.get()))) {
-      invert_colors(h.get());
-    }
-
-    return h;
+    return fix_up(std::move(h));
   }
 
   std::size_t get_altura_helper(NodePtr node) const {
@@ -137,6 +228,25 @@ public:
     }
     if (inseriu) m_size++;
     return inseriu;
+  }
+
+  bool remover(const Key& key) {
+    if (!m_root || buscar(key) == nullptr) return false;
+
+    if (!is_red(static_cast<NodePtr>(m_root->left.get())) && 
+        !is_red(static_cast<NodePtr>(m_root->right.get()))) {
+      m_root->color = Color::RED;
+    }
+
+    bool removeu = false;
+    m_root = remover_helper(std::move(m_root), key, removeu);
+
+    if (m_root) {
+      m_root->color = Color::BLACK;
+    }
+
+    if (removeu) m_size--;
+    return removeu;
   }
 
   const Value* buscar(const Key& key) const {

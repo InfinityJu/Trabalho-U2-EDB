@@ -135,10 +135,11 @@ void menu_rn() {
     while (true) {
         std::cout << "\n--- Menu Árvore Rubro-Negra ---\n";
         std::cout << "1. Inserir chave(s)\n";
-        std::cout << "2. Buscar chave(s)\n";
-        std::cout << "3. Imprimir em-ordem\n";
-        std::cout << "4. Imprimir estrutura visual\n";
-        std::cout << "5. Exibir métricas (Tamanho, Altura, Rotações)\n";
+        std::cout << "2. Remover chave(s)\n";
+        std::cout << "3. Buscar chave(s)\n";
+        std::cout << "4. Imprimir em-ordem\n";
+        std::cout << "5. Imprimir estrutura visual\n";
+        std::cout << "6. Exibir métricas (Tamanho, Altura, Rotações)\n";
         std::cout << "0. Voltar ao menu principal\n";
         std::cout << "Escolha: ";
 
@@ -158,6 +159,16 @@ void menu_rn() {
                     }
                 }
             } else if (opcao == 2) {
+                std::cout << "Digite a(s) chave(s) a ser(em) removida(s) (separadas por espaço): ";
+                std::vector<int> chaves = ler_chaves();
+                for (int c : chaves) {
+                    if (rn.remover(c)) {
+                        std::cout << "Chave " << c << " removida com sucesso.\n";
+                    } else {
+                        std::cout << "Chave " << c << " não encontrada.\n";
+                    }
+                }
+            } else if (opcao == 3) {
                 std::cout << "Digite a(s) chave(s) a buscar (separadas por espaço): ";
                 std::vector<int> chaves = ler_chaves();
                 for (int c : chaves) {
@@ -167,14 +178,14 @@ void menu_rn() {
                         std::cout << "Chave " << c << " não encontrada.\n";
                     }
                 }
-            } else if (opcao == 3) {
+            } else if (opcao == 4) {
                 std::cout << "Em ordem: ";
                 rn.em_ordem();
                 std::cout << "\n";
-            } else if (opcao == 4) {
+            } else if (opcao == 5) {
                 std::cout << "Estrutura da árvore:\n";
                 rn.imprimir_estrutura();
-            } else if (opcao == 5) {
+            } else if (opcao == 6) {
                 std::cout << "Tamanho: " << rn.size() << "\n";
                 std::cout << "Altura: " << rn.get_altura() << "\n";
                 std::cout << "Rotações: " << rn.get_rotacoes() << "\n";
